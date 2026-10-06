@@ -1,0 +1,199 @@
+{
+ "service": "port-control-tower",
+ "run": "demo-1",
+ "tokens": {
+  "manager": "terminal-manager-demo",
+  "planner": "terminal-planner-demo",
+  "viewer": "terminal-viewer-demo"
+ },
+ "steps": [
+  {
+   "title": "Load a terminal at 10:00",
+   "say": "An invented container terminal: three berths, nine quay cranes, a yard of six blocks and a truck gate. Five vessels call today, with 3,955 import boxes between them. An arrival model trained on 320 past calls reads AIS distance and speed; it is tested on 80 more. The first berth plan is made on the schedule.",
+   "calls": [
+    {
+     "key": "load",
+     "as": "manager",
+     "method": "POST",
+     "path": "/v1/terminal:load",
+     "body": {
+      "seed": 17
+     }
+    },
+    {
+     "key": "plan1",
+     "as": "planner",
+     "method": "POST",
+     "path": "/v1/planning/berths",
+     "body": {}
+    }
+   ]
+  },
+  {
+   "title": "AIS: the first ship is hours late",
+   "say": "MSC Riverbend was due at 07:03 and nothing had been heard. Her first AIS position arrives (sent twice; the copy is ignored): 60 nautical miles out at 14 knots. The model puts her alongside in the afternoon, and that collides with another vessel's slot.",
+   "calls": [
+    {
+     "key": "ais",
+     "as": "planner",
+     "method": "POST",
+     "path": "/v1/ais/positions",
+     "body": {
+      "imo": "9400000",
+      "positions": [
+       {
+        "t": "2026-10-05T09:57:00Z",
+        "distance_nm": 60.0,
+        "speed_kn": 14.4
+       },
+       {
+        "t": "2026-10-05T09:57:00Z",
+        "distance_nm": 60.0,
+        "speed_kn": 14.4
+       }
+      ]
+     }
+    },
+    {
+     "key": "status1",
+     "as": "viewer",
+     "method": "GET",
+     "path": "/v1/control-tower/status"
+    }
+   ]
+  },
+  {
+   "title": "What would another delay cost?",
+   "say": "Before changing anything, a what-if: if CMA Delta were also four hours late, what happens under the current plan, under a re-plan, and under first come, first served?",
+   "calls": [
+    {
+     "key": "whatif",
+     "as": "planner",
+     "method": "POST",
+     "path": "/v1/scenarios/disruption",
+     "body": {
+      "imo": "9400411",
+      "delay_h": 4
+     }
+    }
+   ]
+  },
+  {
+   "title": "Re-plan berths and cranes",
+   "say": "The planner redoes the day: a berth, a start and a crane count for every vessel, no two on a berth at once, never more than nine cranes working, the berth long and deep enough. Beside it, first come, first served with three cranes each. Then the crane schedule the plan implies.",
+   "calls": [
+    {
+     "key": "plan2",
+     "as": "planner",
+     "method": "POST",
+     "path": "/v1/planning/berths",
+     "body": {}
+    },
+    {
+     "key": "cranes",
+     "as": "planner",
+     "method": "POST",
+     "path": "/v1/planning/cranes"
+    }
+   ]
+  },
+  {
+   "title": "Stack the yard, then 40 customs holds",
+   "say": "Import boxes that leave together share a stack with the latest at the bottom, so nobody digs. Then customs holds 40 boxes: left where they are, each would be lifted every time a box beneath it is picked; moved to the hold block, each costs one move now.",
+   "calls": [
+    {
+     "key": "yard1",
+     "as": "planner",
+     "method": "POST",
+     "path": "/v1/planning/yard",
+     "body": {
+      "holds": []
+     }
+    },
+    {
+     "key": "yard2",
+     "as": "planner",
+     "method": "POST",
+     "path": "/v1/planning/yard",
+     "body": {
+      "holds": [
+       "RBCU1000000",
+       "RBCU1000060",
+       "RBCU1000126",
+       "RBCU1000190",
+       "RBCU1000243",
+       "RBCU1000295",
+       "RBCU1000354",
+       "RBCU1000410",
+       "RBCU1000472",
+       "RBCU1000530",
+       "RBCU1000582",
+       "RBCU1000634",
+       "RBCU1000691",
+       "RBCU1000739",
+       "RBCU1000793",
+       "RBCU1000866",
+       "RBCU1000927",
+       "RBCU1000980",
+       "RBCU1001033",
+       "RBCU1001088",
+       "RBCU1001138",
+       "RBCU1001195",
+       "RBCU1001248",
+       "RBCU1001310",
+       "RBCU1001371",
+       "RBCU1001430",
+       "RBCU1001488",
+       "RBCU1001545",
+       "RBCU1001604",
+       "RBCU1001662",
+       "RBCU1001723",
+       "RBCU1001780",
+       "RBCU1001843",
+       "RBCU1001898",
+       "RBCU1001950",
+       "RBCU1002006",
+       "RBCU1002057",
+       "RBCU1002112",
+       "RBCU1002165",
+       "RBCU1002220"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "title": "Appointments at the gate",
+   "say": "1,610 trucks are expected today, with a morning and an afternoon peak well over what four lanes can serve. Appointments cap each hour at 90% of capacity and carry the overflow to the next hours with room.",
+   "calls": [
+    {
+     "key": "gate",
+     "as": "planner",
+     "method": "POST",
+     "path": "/v1/gate/appointments",
+     "body": {
+      "share_of_capacity": 0.9
+     }
+    },
+    {
+     "key": "status2",
+     "as": "viewer",
+     "method": "GET",
+     "path": "/v1/control-tower/status"
+    }
+   ]
+  },
+  {
+   "title": "The audit trail",
+   "say": "Who loaded the terminal, which AIS points arrived, who planned berths, yard and gate, with the numbers: recorded in a log that cannot be edited.",
+   "calls": [
+    {
+     "key": "audit",
+     "as": "manager",
+     "method": "GET",
+     "path": "/v1/audit?limit=10"
+    }
+   ]
+  }
+ ]
+}
